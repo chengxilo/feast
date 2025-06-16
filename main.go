@@ -67,7 +67,7 @@ func main() {
 	map_["/"] = menu.NewModel()
 	map_["/file"] = file.NewModel()
 	map_["/system"] = notyet.Model{}
-	map_["/firewall"] = notyet.Model{}
+	map_["/network"] = notyet.Model{}
 	map_["/application"] = notyet.Model{}
 
 	p := tea.NewProgram(newModel(map_), tea.WithAltScreen())

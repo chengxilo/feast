@@ -32,7 +32,7 @@ func NewModel() tea.Model {
 	var items = []list.Item{
 		item{title: "System", desc: "get system info", path: "/system"},
 		item{title: "File", desc: "file explorer", path: "/file"},
-		item{title: "Fire Wall", desc: "fire wall information", path: "/firewall"},
+		item{title: "Fire Wall", desc: "fire wall information", path: "/network"},
 		item{title: "Application", desc: "application management", path: "/application"},
 	}
 	listModel := list.New(items, list.NewDefaultDelegate(), 0, 0)
