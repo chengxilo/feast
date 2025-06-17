@@ -82,7 +82,7 @@ type UI struct {
 	at             string
 	list           list.Model
 	sideBarFocused bool
-	help           comp.Model
+	help           comp.HelpModel
 	choice         string
 	height, width  int
 }
@@ -105,7 +105,41 @@ func NewModel() *UI {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
-	return &UI{list: l, route: mp, at: _const.RouteHome, sideBarFocused: true}
+
+	helpModel := comp.NewHelpModel(comp.KeyMap{
+		SHelp: []string{"help", "quit"},
+		LHelp: [][]string{
+			{"up", "down", "left", "right"},
+			{"help", "quit"},
+		},
+		KeyBindings: map[string]key.Binding{
+			"up": key.NewBinding(
+				key.WithKeys("up", "k"),
+				key.WithHelp("↑/k", "move up"),
+			),
+			"down": key.NewBinding(
+				key.WithKeys("down", "j"),
+				key.WithHelp("↓/j", "move down"),
+			),
+			"left": key.NewBinding(
+				key.WithKeys("left", "h"),
+				key.WithHelp("←/h", "move left"),
+			),
+			"right": key.NewBinding(
+				key.WithKeys("right", "l"),
+				key.WithHelp("→/l", "move right"),
+			),
+			"help": key.NewBinding(
+				key.WithKeys("?"),
+				key.WithHelp("?", "toggle help"),
+			),
+			"quit": key.NewBinding(
+				key.WithKeys("q", "esc", "ctrl+c"),
+				key.WithHelp("q", "quit"),
+			),
+		},
+	})
+	return &UI{list: l, route: mp, at: _const.RouteHome, sideBarFocused: true, help: helpModel}
 }
 
 func (m *UI) Init() tea.Cmd {
@@ -172,44 +206,13 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	mdl, cmd = m.help.Update(msg)
+	m.help = mdl.(comp.HelpModel)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
 func (m *UI) View() string {
-	helpView := comp.NewHelpModel(comp.KeyMap{
-		SHelp: []string{"help", "quit"},
-		LHelp: [][]string{
-			{"up", "down", "left", "right"},
-			{"help", "quit"},
-		},
-		KeyBindings: map[string]key.Binding{
-			"up": key.NewBinding(
-				key.WithKeys("up", "k"),
-				key.WithHelp("↑/k", "move up"),
-			),
-			"down": key.NewBinding(
-				key.WithKeys("down", "j"),
-				key.WithHelp("↓/j", "move down"),
-			),
-			"left": key.NewBinding(
-				key.WithKeys("left", "h"),
-				key.WithHelp("←/h", "move left"),
-			),
-			"right": key.NewBinding(
-				key.WithKeys("right", "l"),
-				key.WithHelp("→/l", "move right"),
-			),
-			"help": key.NewBinding(
-				key.WithKeys("?"),
-				key.WithHelp("?", "toggle help"),
-			),
-			"quit": key.NewBinding(
-				key.WithKeys("q", "esc", "ctrl+c"),
-				key.WithHelp("q", "quit"),
-			),
-		},
-	}).View()
+	helpView := m.help.View()
 
 	helpViewHeight := lipgloss.Height(helpView)
 	m.list.SetHeight(m.height - 2 - helpViewHeight)
