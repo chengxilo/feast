@@ -4,13 +4,11 @@ import (
 	_const "feast/const"
 	"feast/types"
 	"feast/ui/file"
-	"feast/ui/logger"
 	"feast/ui/menu"
 	"feast/ui/notyet"
 	"fmt"
 	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
-	"go.uber.org/zap"
 	"os"
 )
 
@@ -35,7 +33,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
-	logger.Logger.Debug("main update", zap.String("types", fmt.Sprint(msg)), zap.String("at", m.at))
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.latestWindowSizeMsg = msg
@@ -47,7 +44,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case types.RouteMsg:
 		// update where we are
 		m.at = msg.Path
-		logger.Logger.Debug("route update", zap.String("path", m.at), zap.Any("latest window size msg", m.latestWindowSizeMsg))
 		// update its window size
 		m.route[m.at], cmd = m.route[m.at].Update(m.latestWindowSizeMsg)
 		cmds = append(cmds, cmd)

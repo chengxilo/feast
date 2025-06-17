@@ -2,7 +2,7 @@ package file
 
 import (
 	"feast/types"
-	"feast/ui/comp/help"
+	"feast/ui/comp"
 	"feast/ui/logger"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
@@ -36,7 +36,7 @@ func (f detail) toTableRow() table.Row {
 	}
 }
 
-func (m *model) getFiles() ([]detail, error) {
+func (m *Model) getFiles() ([]detail, error) {
 	dir, err := os.ReadDir(m.path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read dir: %e", err)
@@ -65,21 +65,21 @@ func (m *model) getFiles() ([]detail, error) {
 	return details, nil
 }
 
-var log = logger.Logger.With(zap.String("model", "file"))
+var log = logger.Logger.With(zap.String("FileModel", "file"))
 
-type model struct {
+type Model struct {
 	// file path
 	path string
 	// right arrow target
 	rightArrowTargetList []string
 	table                table.Model
-	help                 help.Model
+	help                 comp.Model
 	height               int
 	width                int
 }
 
 func NewModel() tea.Model {
-	m := &model{}
+	m := &Model{}
 	initPath, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal("failed to find user home directory")
@@ -115,7 +115,7 @@ func NewModel() tea.Model {
 		Bold(false)
 	t.SetStyles(s)
 	m.table = t
-	m.help = help.NewHelpModel(help.KeyMap{
+	m.help = comp.NewHelpModel(comp.KeyMap{
 		SHelp: []string{"help", "quit"},
 		LHelp: [][]string{
 			{"up", "down", "left", "right"},
@@ -151,11 +151,11 @@ func NewModel() tea.Model {
 	return m
 }
 
-func (m *model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -224,7 +224,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *model) View() string {
+func (m *Model) View() string {
 	s := lipgloss.NewStyle().Width(m.width).Height(m.height)
 	helpView := m.help.View()
 	helpViewHeight := lipgloss.Height(helpView)

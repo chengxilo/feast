@@ -3,10 +3,10 @@ package menu
 import (
 	_const "feast/const"
 	"feast/types"
-	"feast/ui/comp/help"
-	"feast/ui/file"
+	"feast/ui/comp"
 	"feast/ui/logger"
 	"fmt"
+	"github.com/charmbracelet/bubbles/key"
 	"go.uber.org/zap"
 	"io"
 	"strings"
@@ -23,10 +23,6 @@ const (
 )
 
 var (
-	sidebarTitleStyle = lipgloss.NewStyle().
-				Border(lipgloss.NormalBorder(), true, true, false, true).
-				AlignHorizontal(lipgloss.Center).
-				Width(sidebarWidth)
 	lisStyle = lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), false, true, true, true).
 			Width(sidebarWidth)
@@ -66,12 +62,12 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 type Model struct {
 	list          list.Model
-	help          help.Model
+	help          comp.Model
 	choice        string
 	height, width int
 }
 
-func NewModel() Model {
+func NewModel() *Model {
 	items := []list.Item{
 		item{_const.RouteNetWork, _const.TitleNetWork},
 		item{_const.RouteSystem, _const.TitleSystem},
@@ -84,14 +80,14 @@ func NewModel() Model {
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.Styles.PaginationStyle = paginationStyle
-	return Model{list: l}
+	return &Model{list: l}
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
@@ -118,9 +114,46 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) View() string {
+func (m *Model) View() string {
+	helpView := comp.NewHelpModel(comp.KeyMap{
+		SHelp: []string{"help", "quit"},
+		LHelp: [][]string{
+			{"up", "down", "left", "right"},
+			{"help", "quit"},
+		},
+		KeyBindings: map[string]key.Binding{
+			"up": key.NewBinding(
+				key.WithKeys("up", "k"),
+				key.WithHelp("↑/k", "move up"),
+			),
+			"down": key.NewBinding(
+				key.WithKeys("down", "j"),
+				key.WithHelp("↓/j", "move down"),
+			),
+			"left": key.NewBinding(
+				key.WithKeys("left", "h"),
+				key.WithHelp("←/h", "move left"),
+			),
+			"right": key.NewBinding(
+				key.WithKeys("right", "l"),
+				key.WithHelp("→/l", "move right"),
+			),
+			"help": key.NewBinding(
+				key.WithKeys("?"),
+				key.WithHelp("?", "toggle help"),
+			),
+			"quit": key.NewBinding(
+				key.WithKeys("q", "esc", "ctrl+c"),
+				key.WithHelp("q", "quit"),
+			),
+		},
+	}).View()
+
+	helpViewHeight := lipgloss.Height(helpView)
+	m.list.SetHeight(m.height - 2 - helpViewHeight)
 	styledList := lisStyle.Render(m.list.View())
 	sideBar := lipgloss.JoinVertical(lipgloss.Top, "┌─[FEAST]─┐", styledList)
-	midView := lipgloss.JoinHorizontal(lipgloss.Top, sideBar, file.NewModel().View())
-	return lipgloss.JoinVertical(lipgloss.Left, midView, m.help.View())
+	mainView := lipgloss.JoinHorizontal(lipgloss.Top, sideBar)
+
+	return lipgloss.JoinVertical(lipgloss.Left, mainView, helpView)
 }

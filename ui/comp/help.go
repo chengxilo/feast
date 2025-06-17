@@ -1,4 +1,4 @@
-package help
+package comp
 
 import (
 	"feast/ui/logger"
