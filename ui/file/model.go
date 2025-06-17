@@ -159,11 +159,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// set path to target dir
 				m.path = absPath
 			}
-		case "h":
+		case "left":
 			m.rightArrowTargetList = slices.Concat([]string{m.path}, m.rightArrowTargetList)
 			m.path = filepath.Dir(m.path)
 			m.table.SetCursor(0)
-		case "l":
+		case "right":
 			log.Debug("Right arrow target list", zap.String("path", m.path), zap.Strings("rightArrowTargetList", m.rightArrowTargetList))
 			if len(m.rightArrowTargetList) != 0 {
 				m.path = m.rightArrowTargetList[0]
@@ -186,6 +186,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	m.table.SetRows(rows)
+	m.table.SetHeight(m.height)
 
 	m.table, cmd = m.table.Update(msg)
 	cmds = append(cmds, cmd)
