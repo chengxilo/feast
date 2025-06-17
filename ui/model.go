@@ -7,4 +7,7 @@ type Model interface {
 
 	SetWidth(width int)
 	SetHeight(height int)
+	Focus()
+	Blur()
+	IsFocused() bool
 }

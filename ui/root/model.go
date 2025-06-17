@@ -77,28 +77,23 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 
-const (
-	_FocusLeftSide = iota
-	_FocusRightSide
-)
-
 type UI struct {
-	route         map[string]ui.Model
-	at            string
-	list          list.Model
-	help          comp.Model
-	choice        string
-	height, width int
-	focus         int
+	route          map[string]ui.Model
+	at             string
+	list           list.Model
+	sideBarFocused bool
+	help           comp.Model
+	choice         string
+	height, width  int
 }
 
 func NewModel() *UI {
 	mp := make(map[string]ui.Model)
-	mp[_const.RouteHome] = notyet.Model{}
+	mp[_const.RouteHome] = notyet.NewNotYet()
 	mp[_const.RouteFile] = file.NewModel()
-	mp[_const.RouteSystem] = notyet.Model{}
-	mp[_const.RouteNetWork] = notyet.Model{}
-	mp[_const.RouteApplication] = notyet.Model{}
+	mp[_const.RouteSystem] = notyet.NewNotYet()
+	mp[_const.RouteNetWork] = notyet.NewNotYet()
+	mp[_const.RouteApplication] = notyet.NewNotYet()
 	items := []list.Item{
 		item{_const.RouteNetWork, _const.TitleNetWork},
 		item{_const.RouteSystem, _const.TitleSystem},
@@ -110,7 +105,7 @@ func NewModel() *UI {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
-	return &UI{list: l, route: mp, at: _const.RouteHome, focus: _FocusLeftSide}
+	return &UI{list: l, route: mp, at: _const.RouteHome, sideBarFocused: true}
 }
 
 func (m *UI) Init() tea.Cmd {
@@ -145,33 +140,39 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		if keypress == "tab" {
-			if m.focus == _FocusLeftSide {
-				m.focus = _FocusRightSide
+			if m.sideBarFocused {
+				m.sideBarFocused = false
+				m.route[m.at].Focus()
 			} else {
-				m.focus = _FocusLeftSide
+				m.sideBarFocused = true
+				m.route[m.at].Blur()
 			}
 		}
-		if m.focus == _FocusLeftSide {
-			switch keypress {
-			case "enter":
-				if m.focus == _FocusLeftSide {
-					i, ok := m.list.SelectedItem().(item)
-					if ok {
-						return m, types.RouteCmd(i.route)
-					}
+		switch keypress {
+		case "enter":
+			if m.sideBarFocused {
+				i, ok := m.list.SelectedItem().(item)
+				if ok {
+					cmds = append(cmds, types.RouteCmd(i.route))
 				}
 			}
-			m.list, cmd = m.list.Update(msg)
-			cmds = append(cmds, cmd)
-		} else {
-			// run the update method of where we are
-			var mdl tea.Model
-			mdl, cmd = m.route[m.at].Update(msg)
-			m.route[m.at] = mdl.(ui.Model)
-			cmds = append(cmds, cmd)
 		}
 	}
 
+	// Only update m.list when it is not key message
+	if _, ok := msg.(tea.KeyMsg); !ok || m.sideBarFocused {
+		m.list, cmd = m.list.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	// run the update method of where we are
+	var mdl tea.Model
+	mdl, cmd = m.route[m.at].Update(msg)
+	m.route[m.at] = mdl.(ui.Model)
+	cmds = append(cmds, cmd)
+
+	mdl, cmd = m.help.Update(msg)
+	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
@@ -213,7 +214,7 @@ func (m *UI) View() string {
 	helpViewHeight := lipgloss.Height(helpView)
 	m.list.SetHeight(m.height - 2 - helpViewHeight)
 	var sideBar string
-	if m.focus == _FocusLeftSide {
+	if m.sideBarFocused {
 		sideBar = sideBarFocusedStyle.Render(m.list.View())
 	} else {
 		sideBar = sideBarStyle.Render(m.list.View())
@@ -223,10 +224,10 @@ func (m *UI) View() string {
 	m.route[m.at].SetWidth(m.width - lipgloss.Width(sideBar) - 2)
 
 	var contentView string
-	if m.focus == _FocusLeftSide {
-		contentView = contentStyle.Render(m.route[m.at].View())
-	} else {
+	if m.route[m.at].IsFocused() {
 		contentView = contentFocusedStyle.Render(m.route[m.at].View())
+	} else {
+		contentView = contentStyle.Render(m.route[m.at].View())
 	}
 	mainView := lipgloss.JoinHorizontal(lipgloss.Top, sideBar, contentView)
 

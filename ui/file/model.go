@@ -2,7 +2,6 @@ package file
 
 import (
 	"feast/logger"
-	"feast/types"
 	"feast/ui"
 	"fmt"
 	"github.com/charmbracelet/bubbles/table"
@@ -41,7 +40,6 @@ func (m *Model) getFiles() ([]detail, error) {
 		return nil, fmt.Errorf("failed to read dir: %e", err)
 	}
 	details := make([]detail, 0, len(dir))
-	log.Debug("get files", zap.String("path", m.path), zap.String("detail", fmt.Sprint(details)))
 	for _, file := range dir {
 		info, err := file.Info()
 		if err != nil {
@@ -61,6 +59,7 @@ func (m *Model) getFiles() ([]detail, error) {
 			mode: info.Mode().String(),
 		})
 	}
+	log.Debug("get files", zap.String("path", m.path), zap.String("detail", fmt.Sprint(details)))
 	return details, nil
 }
 
@@ -74,6 +73,7 @@ type Model struct {
 	table                table.Model
 	height               int
 	width                int
+	focused              bool
 }
 
 func (m *Model) SetWidth(width int) {
@@ -84,8 +84,24 @@ func (m *Model) SetHeight(height int) {
 	m.height = height
 }
 
+func (m *Model) Focus() {
+	m.focused = true
+	m.table.Focus()
+}
+
+func (m *Model) Blur() {
+	m.focused = false
+	m.table.Blur()
+}
+
+func (m *Model) IsFocused() bool {
+	return m.focused
+}
+
 func NewModel() ui.Model {
-	m := &Model{}
+	m := &Model{
+		focused: false,
+	}
 	initPath, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal("failed to find user home directory")
@@ -134,46 +150,41 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 	log.Debug("update", zap.Any("msg", msg))
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			if m.table.Focused() {
-				m.table.Blur()
-			} else {
-				m.table.Focus()
+	if m.IsFocused() {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "enter":
+				if m.table.SelectedRow() == nil {
+					return m, nil
+				}
+				// select a file to explore
+				absPath := path.Join(m.path, m.table.SelectedRow()[0])
+				f, err := os.Stat(absPath)
+				if err != nil {
+					log.Error("Failed to get file when select", zap.String("path", absPath), zap.Error(err))
+					return m, nil
+				}
+				if f.IsDir() {
+					m.rightArrowTargetList = nil
+					// set path to target dir
+					m.path = absPath
+				}
+			case "left":
+				m.rightArrowTargetList = slices.Concat([]string{m.path}, m.rightArrowTargetList)
+				m.path = filepath.Dir(m.path)
+				m.table.SetCursor(0)
+			case "right":
+				log.Debug("Right arrow target list", zap.String("path", m.path), zap.Strings("rightArrowTargetList", m.rightArrowTargetList))
+				if len(m.rightArrowTargetList) != 0 {
+					m.path = m.rightArrowTargetList[0]
+					m.rightArrowTargetList = m.rightArrowTargetList[1:]
+				}
+				m.table.SetCursor(0)
 			}
-		case "enter":
-			if m.table.SelectedRow() == nil {
-				return m, nil
-			}
-			// select a file to explore
-			absPath := path.Join(m.path, m.table.SelectedRow()[0])
-			f, err := os.Stat(absPath)
-			if err != nil {
-				log.Error("Failed to get file when select", zap.String("path", absPath), zap.Error(err))
-				return m, nil
-			}
-			if f.IsDir() {
-				m.rightArrowTargetList = nil
-				// set path to target dir
-				m.path = absPath
-			}
-		case "left":
-			m.rightArrowTargetList = slices.Concat([]string{m.path}, m.rightArrowTargetList)
-			m.path = filepath.Dir(m.path)
-			m.table.SetCursor(0)
-		case "right":
-			log.Debug("Right arrow target list", zap.String("path", m.path), zap.Strings("rightArrowTargetList", m.rightArrowTargetList))
-			if len(m.rightArrowTargetList) != 0 {
-				m.path = m.rightArrowTargetList[0]
-				m.rightArrowTargetList = m.rightArrowTargetList[1:]
-			}
-			m.table.SetCursor(0)
-		case "q":
-			return m, types.RouteCmd("/")
 		}
 	}
+
 	details, err := m.getFiles()
 	if err != nil {
 		log.Error("Failed to get file details", zap.Error(err))
@@ -186,15 +197,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	m.table.SetRows(rows)
-	m.table.SetHeight(m.height)
-
 	m.table, cmd = m.table.Update(msg)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) View() string {
-	s := lipgloss.NewStyle().Width(m.width).Height(m.height)
+	m.table.SetHeight(m.height)
 	tableView := m.table.View()
-	return s.Render(tableView)
+	log.Debug("file model View() called", zap.String("content", tableView))
+	return tableView
 }

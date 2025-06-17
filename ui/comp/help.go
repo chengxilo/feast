@@ -1,11 +1,9 @@
 package comp
 
 import (
-	"feast/logger"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"go.uber.org/zap"
 )
 
 // KeyMap defines a set of keybindings. To work for help it must satisfy
@@ -46,8 +44,8 @@ type Model struct {
 	quitting bool
 }
 
-func NewHelpModel(keys KeyMap) Model {
-	return Model{
+func NewHelpModel(keys KeyMap) *Model {
+	return &Model{
 		keys: keys,
 		help: help.New(),
 	}
@@ -61,7 +59,7 @@ func (m Model) SetKeyMap(k KeyMap) {
 	m.keys = k
 }
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.help.Width = msg.Width
@@ -75,6 +73,5 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) View() string {
 	helpView := m.help.View(m.keys)
-	logger.Logger.Debug("helping view", zap.String("h", helpView))
 	return helpView
 }
