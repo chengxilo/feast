@@ -2,7 +2,7 @@ package file
 
 import (
 	"feast/types"
-	"feast/ui/component/help"
+	"feast/ui/comp/help"
 	"feast/ui/logger"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
@@ -36,7 +36,7 @@ func (f detail) toTableRow() table.Row {
 	}
 }
 
-func (m model) getFiles() ([]detail, error) {
+func (m *model) getFiles() ([]detail, error) {
 	dir, err := os.ReadDir(m.path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read dir: %e", err)
@@ -151,11 +151,11 @@ func NewModel() tea.Model {
 	return m
 }
 
-func (m model) Init() tea.Cmd {
+func (m *model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -224,7 +224,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) View() string {
+func (m *model) View() string {
 	s := lipgloss.NewStyle().Width(m.width).Height(m.height)
 	helpView := m.help.View()
 	helpViewHeight := lipgloss.Height(helpView)

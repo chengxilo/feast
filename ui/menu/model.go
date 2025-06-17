@@ -1,79 +1,90 @@
 package menu
 
 import (
+	_const "feast/const"
 	"feast/types"
-	"feast/ui/component/help"
+	"feast/ui/comp/help"
+	"feast/ui/file"
 	"feast/ui/logger"
-	"github.com/charmbracelet/bubbles/key"
+	"fmt"
+	"go.uber.org/zap"
+	"io"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"go.uber.org/zap"
 )
 
 var log = logger.Logger.With(zap.String("model", "menu"))
 
+const (
+	sidebarWidth = 9
+)
+
+var (
+	sidebarTitleStyle = lipgloss.NewStyle().
+				Border(lipgloss.NormalBorder(), true, true, false, true).
+				AlignHorizontal(lipgloss.Center).
+				Width(sidebarWidth)
+	lisStyle = lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, true, true, true).
+			Width(sidebarWidth)
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(1)
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(1).PaddingRight(1).Background(lipgloss.Color("62"))
+	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+)
+
 type item struct {
-	title, desc, path string
+	route string
+	title string
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
-func (i item) FilterValue() string { return i.title }
+func (i item) FilterValue() string { return "" }
+
+type itemDelegate struct{}
+
+func (d itemDelegate) Height() int                             { return 1 }
+func (d itemDelegate) Spacing() int                            { return 0 }
+func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	itm, ok := listItem.(item)
+	if !ok {
+		return
+	}
+	str := itm.title
+
+	fn := itemStyle.Render
+	if index == m.Index() {
+		fn = func(s ...string) string {
+			return selectedItemStyle.Render(strings.Join(s, "useless"))
+		}
+	}
+
+	fmt.Fprint(w, fn(str))
+}
 
 type Model struct {
-	list   list.Model
-	help   help.Model
-	height int
-	width  int
+	list          list.Model
+	help          help.Model
+	choice        string
+	height, width int
 }
 
-func NewModel() tea.Model {
-	var items = []list.Item{
-		item{title: "System", desc: "get system info", path: "/system"},
-		item{title: "File", desc: "file explorer", path: "/file"},
-		item{title: "Fire Wall", desc: "fire wall information", path: "/network"},
-		item{title: "Application", desc: "application management", path: "/application"},
+func NewModel() Model {
+	items := []list.Item{
+		item{_const.RouteNetWork, _const.TitleNetWork},
+		item{_const.RouteSystem, _const.TitleSystem},
+		item{_const.RouteFile, _const.TitleFile},
 	}
-	listModel := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	listModel.SetShowHelp(false)
-	listModel.SetShowTitle(false)
-	listModel.SetShowStatusBar(false)
-	helpModel := help.NewHelpModel(help.KeyMap{
-		SHelp: []string{"help", "quit"},
-		LHelp: [][]string{
-			{"up", "down", "left", "right"},
-			{"help", "quit"},
-		},
-		KeyBindings: map[string]key.Binding{
-			"up": key.NewBinding(
-				key.WithKeys("up", "k"),
-				key.WithHelp("↑/k", "move up"),
-			),
-			"down": key.NewBinding(
-				key.WithKeys("down", "j"),
-				key.WithHelp("↓/j", "move down"),
-			),
-			"left": key.NewBinding(
-				key.WithKeys("left", "h"),
-				key.WithHelp("←/h", "move left"),
-			),
-			"right": key.NewBinding(
-				key.WithKeys("right", "l"),
-				key.WithHelp("→/l", "move right"),
-			),
-			"help": key.NewBinding(
-				key.WithKeys("?"),
-				key.WithHelp("?", "toggle help"),
-			),
-			"quit": key.NewBinding(
-				key.WithKeys("q", "esc", "ctrl+c"),
-				key.WithHelp("q", "quit"),
-			),
-		},
-	})
-	return Model{
-		listModel, helpModel, 0, 0}
+
+	l := list.New(items, itemDelegate{}, sidebarWidth, 10)
+	l.SetShowTitle(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
+	l.Styles.PaginationStyle = paginationStyle
+	return Model{list: l}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -81,37 +92,35 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
+		lisStyle = lisStyle.Height(m.height - 4)
+		return m, nil
+
 	case tea.KeyMsg:
-		switch msg.String() {
+		switch keypress := msg.String(); keypress {
+		case "q":
+			return m, types.RouteCmd(_const.RouteHome)
+
 		case "enter":
-			// change view
-			path := m.list.Items()[m.list.Index()].(item).path
-			logger.Logger.Debug("menu update, key enter", zap.String("path", path))
-			return m, types.RouteCmd(path)
+			i, ok := m.list.SelectedItem().(item)
+			log.Debug("enter key", zap.String("route", i.route))
+			if ok {
+				return m, types.RouteCmd(i.route)
+			}
 		}
 	}
 
+	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.help, cmd = m.help.Update(msg)
-	cmds = append(cmds, cmd)
-	return m, tea.Batch(cmds...)
+	return m, cmd
 }
 
 func (m Model) View() string {
-	s := lipgloss.NewStyle().Width(m.width).Height(m.height)
-	helpView := m.help.View()
-	helpViewHeight := lipgloss.Height(helpView)
-	m.list.SetSize(m.width, m.height-helpViewHeight)
-	listView := m.list.View()
-	return s.Render(lipgloss.JoinVertical(lipgloss.Left, listView, helpView))
+	styledList := lisStyle.Render(m.list.View())
+	sideBar := lipgloss.JoinVertical(lipgloss.Top, "┌─[FEAST]─┐", styledList)
+	midView := lipgloss.JoinHorizontal(lipgloss.Top, sideBar, file.NewModel().View())
+	return lipgloss.JoinVertical(lipgloss.Left, midView, m.help.View())
 }

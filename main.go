@@ -1,6 +1,7 @@
 package main
 
 import (
+	_const "feast/const"
 	"feast/types"
 	"feast/ui/file"
 	"feast/ui/logger"
@@ -22,7 +23,7 @@ type model struct {
 func newModel(map_ map[string]tea.Model) *model {
 	return &model{
 		route: map_,
-		at:    "/",
+		at:    _const.RouteHome,
 	}
 }
 func (m model) Init() tea.Cmd {
@@ -63,14 +64,14 @@ func (m model) View() string {
 }
 
 func main() {
-	map_ := make(map[string]tea.Model)
-	map_["/"] = menu.NewModel()
-	map_["/file"] = file.NewModel()
-	map_["/system"] = notyet.Model{}
-	map_["/network"] = notyet.Model{}
-	map_["/application"] = notyet.Model{}
+	mp := make(map[string]tea.Model)
+	mp[_const.RouteHome] = menu.NewModel()
+	mp[_const.RouteFile] = file.NewModel()
+	mp[_const.RouteSystem] = notyet.Model{}
+	mp[_const.RouteNetWork] = notyet.Model{}
+	mp[_const.RouteApplication] = notyet.Model{}
 
-	p := tea.NewProgram(newModel(map_), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(mp), tea.WithAltScreen())
 
 	help.New()
 	if _, err := p.Run(); err != nil {
