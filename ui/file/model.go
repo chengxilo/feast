@@ -1,11 +1,10 @@
 package file
 
 import (
+	"feast/logger"
 	"feast/types"
-	"feast/ui/comp"
-	"feast/ui/logger"
+	"feast/ui"
 	"fmt"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -73,12 +72,19 @@ type Model struct {
 	// right arrow target
 	rightArrowTargetList []string
 	table                table.Model
-	help                 comp.Model
 	height               int
 	width                int
 }
 
-func NewModel() tea.Model {
+func (m *Model) SetWidth(width int) {
+	m.width = width
+}
+
+func (m *Model) SetHeight(height int) {
+	m.height = height
+}
+
+func NewModel() ui.Model {
 	m := &Model{}
 	initPath, err := os.UserHomeDir()
 	if err != nil {
@@ -115,39 +121,6 @@ func NewModel() tea.Model {
 		Bold(false)
 	t.SetStyles(s)
 	m.table = t
-	m.help = comp.NewHelpModel(comp.KeyMap{
-		SHelp: []string{"help", "quit"},
-		LHelp: [][]string{
-			{"up", "down", "left", "right"},
-			{"help", "quit"},
-		},
-		KeyBindings: map[string]key.Binding{
-			"up": key.NewBinding(
-				key.WithKeys("up", "k"),
-				key.WithHelp("↑/k", "move up"),
-			),
-			"down": key.NewBinding(
-				key.WithKeys("down", "j"),
-				key.WithHelp("↓/j", "move down"),
-			),
-			"left": key.NewBinding(
-				key.WithKeys("left", "h"),
-				key.WithHelp("←/h", "move left"),
-			),
-			"right": key.NewBinding(
-				key.WithKeys("right", "l"),
-				key.WithHelp("→/l", "move right"),
-			),
-			"help": key.NewBinding(
-				key.WithKeys("?"),
-				key.WithHelp("?", "toggle help"),
-			),
-			"quit": key.NewBinding(
-				key.WithKeys("q", "esc", "ctrl+c"),
-				key.WithHelp("q", "quit"),
-			),
-		},
-	})
 	return m
 }
 
@@ -162,9 +135,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 	log.Debug("update", zap.Any("msg", msg))
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
@@ -189,11 +159,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// set path to target dir
 				m.path = absPath
 			}
-		case "left":
+		case "h":
 			m.rightArrowTargetList = slices.Concat([]string{m.path}, m.rightArrowTargetList)
 			m.path = filepath.Dir(m.path)
 			m.table.SetCursor(0)
-		case "right":
+		case "l":
 			log.Debug("Right arrow target list", zap.String("path", m.path), zap.Strings("rightArrowTargetList", m.rightArrowTargetList))
 			if len(m.rightArrowTargetList) != 0 {
 				m.path = m.rightArrowTargetList[0]
@@ -219,16 +189,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	m.table, cmd = m.table.Update(msg)
 	cmds = append(cmds, cmd)
-	m.help, cmd = m.help.Update(msg)
-	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) View() string {
 	s := lipgloss.NewStyle().Width(m.width).Height(m.height)
-	helpView := m.help.View()
-	helpViewHeight := lipgloss.Height(helpView)
-	m.table.SetHeight(m.height - helpViewHeight)
 	tableView := m.table.View()
-	return s.Render(lipgloss.JoinVertical(lipgloss.Left, tableView, helpView))
+	return s.Render(tableView)
 }

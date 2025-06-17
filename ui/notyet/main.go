@@ -22,3 +22,6 @@ func (m Model) View() string {
 	s := fmt.Sprint("Building, press any key to go exit...")
 	return s + "\n"
 }
+
+func (m Model) SetWidth(width int)   {}
+func (m Model) SetHeight(height int) {}

@@ -1,7 +1,7 @@
 package comp
 
 import (
-	"feast/ui/logger"
+	"feast/logger"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
