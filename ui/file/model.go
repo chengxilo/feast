@@ -121,7 +121,7 @@ func NewModel() ui.Model {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
-		table.WithFocused(true),
+		table.WithFocused(false),
 		table.WithHeight(9),
 	)
 

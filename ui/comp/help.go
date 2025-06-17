@@ -60,6 +60,7 @@ func (m Model) SetKeyMap(k KeyMap) {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.help.Width = msg.Width
@@ -68,7 +69,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		}
 	}
-	return m, nil
+	m.help, cmd = m.help.Update(msg)
+	return m, cmd
 }
 
 func (m Model) View() string {
