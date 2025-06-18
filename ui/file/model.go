@@ -4,16 +4,17 @@ import (
 	"feast/logger"
 	"feast/ui"
 	"fmt"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"go.uber.org/zap"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/charmbracelet/bubbles/table"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"go.uber.org/zap"
 )
 
 type detail struct {
@@ -82,6 +83,7 @@ func (m *Model) SetWidth(width int) {
 
 func (m *Model) SetHeight(height int) {
 	m.height = height
+	m.table.SetHeight(m.height)
 }
 
 func (m *Model) Focus() {
@@ -203,7 +205,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	m.table.SetHeight(m.height)
 	tableView := m.table.View()
 	log.Debug("file model View() called", zap.String("content", tableView))
 	return tableView

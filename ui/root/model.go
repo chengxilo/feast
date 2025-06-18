@@ -9,10 +9,11 @@ import (
 	"feast/ui/file"
 	"feast/ui/notyet"
 	"fmt"
-	"github.com/charmbracelet/bubbles/key"
-	"go.uber.org/zap"
 	"io"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/key"
+	"go.uber.org/zap"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -158,16 +159,17 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.width = msg.Width
 		sideBarStyle = sideBarStyle.Height(m.height - 4)
+		m.applyLayout()
 		return m, nil
-
 	case types.RouteMsg:
-		// update where we are
+		// page was changed, need to load the new content
 		m.at = msg.Path
-		// update its window size
 		var mdl tea.Model
 		mdl, cmd = m.route[m.at].Update(msg)
 		m.route[m.at] = mdl.(ui.Model)
 		cmds = append(cmds, cmd)
+		// ensure the new content layout
+		m.applyLayout()
 	case tea.KeyMsg:
 		keypress := msg.String()
 		if keypress == "ctrl+c" {
@@ -211,11 +213,23 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *UI) applyLayout() {
+	helpHeight := lipgloss.Height(m.help.View())
+	m.list.SetHeight(m.height - 2 - helpHeight)
+
+	side := sideBarStyle
+	if m.sideBarFocused {
+		side = sideBarFocusedStyle
+	}
+	contentWidth := m.width - lipgloss.Width(side.Render(m.list.View())) - 2
+
+	m.route[m.at].SetHeight(m.height - helpHeight - 2)
+	m.route[m.at].SetWidth(contentWidth)
+}
+
 func (m *UI) View() string {
 	helpView := m.help.View()
 
-	helpViewHeight := lipgloss.Height(helpView)
-	m.list.SetHeight(m.height - 2 - helpViewHeight)
 	var sideBar string
 	if m.sideBarFocused {
 		sideBar = sideBarFocusedStyle.Render(m.list.View())
@@ -223,16 +237,13 @@ func (m *UI) View() string {
 		sideBar = sideBarStyle.Render(m.list.View())
 	}
 
-	m.route[m.at].SetHeight(m.height - helpViewHeight - 2)
-	m.route[m.at].SetWidth(m.width - lipgloss.Width(sideBar) - 2)
-
 	var contentView string
 	if m.route[m.at].IsFocused() {
 		contentView = contentFocusedStyle.Render(m.route[m.at].View())
 	} else {
 		contentView = contentStyle.Render(m.route[m.at].View())
 	}
-	mainView := lipgloss.JoinHorizontal(lipgloss.Top, sideBar, contentView)
 
+	mainView := lipgloss.JoinHorizontal(lipgloss.Top, sideBar, contentView)
 	return lipgloss.JoinVertical(lipgloss.Left, mainView, helpView)
 }
